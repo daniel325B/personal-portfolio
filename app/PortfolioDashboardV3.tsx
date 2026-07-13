@@ -39,6 +39,10 @@ function sourceText(asset: Asset): string {
   return "직접 입력 KRW 단가";
 }
 
+function isCashEquivalent(asset: Asset): boolean {
+  return asset.kind === "cash" || asset.symbol === "USDT" || asset.symbol === "USDC";
+}
+
 export function PortfolioDashboardV3() {
   const [assets, setAssets] = useState<readonly Asset[]>([]);
   const [market, setMarket] = useState<MarketSnapshot>(emptyMarket);
@@ -55,11 +59,18 @@ export function PortfolioDashboardV3() {
   const marketAssetsKey = useMemo(() => assets.filter((asset) => asset.kind === "crypto" || asset.kind === "equity").map((asset) => `${asset.kind}:${asset.symbol}`).join("|"), [assets]);
   const hasReadyValuation = assets.length > 0 && assets.every((asset) => asset.quote > 0 && (asset.kind !== "crypto" || market.usdKrw !== null));
   const timeline = useMemo(() => selectTimeline(history, range, dayKey()), [history, range]);
-  const positionWeights = useMemo(() => assets.map((asset) => ({ label: `${asset.name} · ${asset.account === "futures" ? "선물" : "현물"}`, value: positionValue(asset) })).sort((left, right) => right.value - left.value), [assets, positionValue]);
+  const positionWeights = useMemo(() => {
+    const totals = new Map<string, number>();
+    for (const asset of assets) {
+      const label = isCashEquivalent(asset) ? "현금" : `${asset.name} · ${asset.account === "futures" ? "선물" : "현물"}`;
+      totals.set(label, (totals.get(label) ?? 0) + positionValue(asset));
+    }
+    return [...totals].map(([label, value]) => ({ label, value })).sort((left, right) => right.value - left.value);
+  }, [assets, positionValue]);
   const sectorWeights = useMemo(() => {
     const totals = new Map<string, number>();
     for (const asset of assets) {
-      const sector = asset.sector?.trim() || asset.kind;
+      const sector = isCashEquivalent(asset) ? "현금" : asset.sector?.trim() || asset.kind;
       totals.set(sector, (totals.get(sector) ?? 0) + positionValue(asset));
     }
     return [...totals].map(([label, value]) => ({ label, value })).sort((left, right) => right.value - left.value);
