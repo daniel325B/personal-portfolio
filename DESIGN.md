@@ -12,6 +12,7 @@
 | Ink | `--ink` | `#111111` | 본문, 테두리, 그림자 |
 | Muted ink | `--muted` | `#5A554D` | 보조 설명 |
 | Signal red | `--accent` | `#F33A31` | 주요 CTA, 핵심 지표, 활성 상태 |
+| Signal red ink | `--accent-ink` | `#B71D18` | 작은 레이블과 보조 텍스트 |
 | Signal yellow | `--warning` | `#FFD84A` | 키보드 포커스, 주의 상태 |
 | Positive green | `--positive` | `#147A45` | 성공 상태 |
 | Negative red | `--negative` | `#B71D18` | 삭제와 오류 |
@@ -39,7 +40,7 @@
 ### Structural panel
 - **Structure**: 제목/메타 + 본문 영역을 가진 사각형 카드
 - **Variants**: 기본, 강조(빨간 인덱스), 비어 있음
-- **States**: hover 시 2px 이동, focus 없음, empty 문구 유지
+- **States**: hover 시 2px 이동, empty 문구 유지
 - **Accessibility**: 텍스트 대비 4.5:1 이상, 의미 있는 헤딩 순서
 
 ### Action button
