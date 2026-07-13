@@ -69,12 +69,14 @@ export function PortfolioDashboardV3() {
     if (assetKey.length === 0) return;
     setRefreshing(true);
     setNotice("Hyperliquid, 환율, Upbit, 네이버 시세를 갱신하고 있습니다.");
-    const [midsPayload, fxPayload, usdtPayload] = await Promise.all([
+    const [midsPayload, xyzMidsPayload, fxPayload, usdtPayload] = await Promise.all([
       requestJson("https://api.hyperliquid.xyz/info", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ type: "allMids" }) }),
+      requestJson("https://api.hyperliquid.xyz/info", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ type: "allMids", dex: "xyz" }) }),
       requestJson("https://open.er-api.com/v6/latest/USD"),
       requestJson("https://api.upbit.com/v1/ticker?markets=KRW-USDT"),
     ]);
     const mids = isRecord(midsPayload) ? midsPayload : {};
+    const xyzMids = isRecord(xyzMidsPayload) ? xyzMidsPayload : {};
     const fx = isRecord(fxPayload) && fxPayload.result === "success" && isRecord(fxPayload.rates) ? fxPayload.rates : {};
     const usdt = Array.isArray(usdtPayload) && isRecord(usdtPayload[0]) ? usdtPayload[0] : {};
     const usdKrw = typeof fx.KRW === "number" ? fx.KRW : null;
@@ -86,7 +88,7 @@ export function PortfolioDashboardV3() {
     const rows = areas.flatMap((area) => isRecord(area) && Array.isArray(area.datas) ? area.datas : []);
     setMarket({ usdKrw, usdtKrw, refreshedAt: new Intl.DateTimeFormat("ko-KR", { dateStyle: "medium", timeStyle: "short" }).format(new Date()) });
     setAssets((current) => current.map((asset) => {
-      const cryptoQuote = mids[asset.symbol];
+      const cryptoQuote = mids[asset.symbol] ?? xyzMids[asset.symbol] ?? xyzMids[`xyz:${asset.symbol}`];
       const stock = rows.find((row) => isRecord(row) && row.cd === asset.symbol);
       if (asset.kind === "crypto" && asset.symbol === "USDC") return { ...asset, quote: 1, quoteState: "live" };
       if (asset.kind === "crypto" && asset.symbol === "USDT" && usdKrw !== null && usdtKrw !== null) return { ...asset, quote: usdtKrw / usdKrw, quoteState: "live" };
