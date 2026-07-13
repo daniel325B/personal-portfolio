@@ -88,6 +88,7 @@ export function PortfolioDashboardV3() {
     setAssets((current) => current.map((asset) => {
       const cryptoQuote = mids[asset.symbol];
       const stock = rows.find((row) => isRecord(row) && row.cd === asset.symbol);
+      if (asset.kind === "crypto" && asset.symbol === "USDT" && usdKrw !== null && usdtKrw !== null) return { ...asset, quote: usdtKrw / usdKrw, quoteState: "live" };
       if (asset.kind === "crypto" && typeof cryptoQuote === "string" && Number.isFinite(Number(cryptoQuote))) return { ...asset, quote: Number(cryptoQuote), quoteState: "live" };
       if (asset.kind === "equity" && isRecord(stock) && typeof stock.nv === "number") return { ...asset, quote: stock.nv, quoteState: "live" };
       if ((asset.kind === "crypto" || asset.kind === "equity") && asset.quote > 0) return { ...asset, quoteState: "stale" };
@@ -132,7 +133,8 @@ export function PortfolioDashboardV3() {
     }
     const quote = form.kind === "cash" ? 1 : form.kind === "other" ? manualQuote : 0;
     const quoteState = form.kind === "cash" || form.kind === "other" ? "manual" : "pending";
-    setAssets((current) => [...current, { id: crypto.randomUUID(), kind: form.kind, name: form.name.trim(), symbol, quantity, averageCost, quote, quoteState, account: form.account, sector: form.sector.trim() || form.kind }]);
+    const sector = symbol === "USDT" && form.sector === "가상자산" ? "스테이블코인" : form.sector.trim() || form.kind;
+    setAssets((current) => [...current, { id: crypto.randomUUID(), kind: form.kind, name: form.name.trim(), symbol, quantity, averageCost, quote, quoteState, account: form.account, sector }]);
     setNotice(form.kind === "cash" || form.kind === "other" ? "직접 입력 자산을 추가했습니다." : "포지션을 추가했습니다. 시장가를 자동으로 조회합니다.");
     return true;
   }
