@@ -11,7 +11,7 @@ Private asset command center following the raoni.xyz dark-teal market grammar: s
 ## 3. Typography
 System Korean sans at 12/14/16/24/40px; ui-monospace for market figures.
 ## 4. Spacing & Layout
-4px base, 1280px max width, 640/768/1024 breakpoints.
+4px base, 1180px max width, 640/768/820/1024 breakpoints.
 ## 5. Components
 Quote card, action button, asset form, and holding row each expose default, empty, loading, and stale states with semantic labels. Market currency and KRW-converted valuation must never share the same label or value field.
 ## 6. Motion & Interaction
