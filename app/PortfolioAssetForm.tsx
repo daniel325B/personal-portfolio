@@ -1,20 +1,23 @@
 "use client";
 
 import { type FormEvent, useEffect, useState } from "react";
-import { type AssetKind, type PositionForm, type StockCandidate, formForKind, isAccountKind, isAssetKind, isRecord } from "./portfolio-model";
+import { type Asset, type AssetKind, type PositionForm, type StockCandidate, formForAsset, formForKind, isAccountKind, isAssetKind, isRecord } from "./portfolio-model";
 
 type PortfolioAssetFormProps = {
   readonly onAdd: (form: PositionForm, candidate: StockCandidate | null) => boolean;
+  readonly onUpdate: (id: string, form: PositionForm, candidate: StockCandidate | null) => boolean;
+  readonly editingAsset: Asset | null;
+  readonly onCancelEdit: () => void;
 };
 
 function isCandidate(value: unknown): value is StockCandidate {
   return isRecord(value) && typeof value.name === "string" && typeof value.symbol === "string";
 }
 
-export function PortfolioAssetForm({ onAdd }: PortfolioAssetFormProps) {
-  const [form, setForm] = useState<PositionForm>(formForKind("crypto"));
+export function PortfolioAssetForm({ onAdd, onUpdate, editingAsset, onCancelEdit }: PortfolioAssetFormProps) {
+  const [form, setForm] = useState<PositionForm>(() => editingAsset === null ? formForKind("crypto") : formForAsset(editingAsset));
   const [candidates, setCandidates] = useState<readonly StockCandidate[]>([]);
-  const [selected, setSelected] = useState<StockCandidate | null>(null);
+  const [selected, setSelected] = useState<StockCandidate | null>(() => editingAsset?.kind === "equity" ? { name: editingAsset.name, symbol: editingAsset.symbol } : null);
   const [searching, setSearching] = useState(false);
   const [searchMessage, setSearchMessage] = useState("");
 
@@ -73,7 +76,8 @@ export function PortfolioAssetForm({ onAdd }: PortfolioAssetFormProps) {
 
   function submit(event: FormEvent<HTMLFormElement>): void {
     event.preventDefault();
-    if (onAdd(form, selected)) {
+    const saved = editingAsset === null ? onAdd(form, selected) : onUpdate(editingAsset.id, form, selected);
+    if (saved) {
       setForm({ ...formForKind(form.kind), account: form.account });
       setCandidates([]);
       setSelected(null);
@@ -82,11 +86,20 @@ export function PortfolioAssetForm({ onAdd }: PortfolioAssetFormProps) {
     }
   }
 
+  function cancelEdit(): void {
+    setForm(formForKind("crypto"));
+    setCandidates([]);
+    setSelected(null);
+    setSearchMessage("");
+    setSearching(false);
+    onCancelEdit();
+  }
+
   const showManualQuote = form.kind === "other";
   const showAverageCost = form.kind === "crypto" || form.kind === "equity" || form.kind === "other";
 
   return <form className="raoniForm" onSubmit={submit}>
-    <p className="raoniEyebrow">ADD POSITION</p><h2>자산 추가</h2>
+    <p className="raoniEyebrow">{editingAsset === null ? "ADD POSITION" : "EDIT POSITION"}</p><h2>{editingAsset === null ? "자산 추가" : "자산 수정"}</h2>
     <label>계정 구분<select value={form.account} onChange={(event) => updateAccount(event.target.value)}><option value="spot">현물</option><option value="futures">선물</option></select></label>
     <label>자산 유형<select value={form.kind} onChange={(event) => updateKind(event.target.value)}><option value="crypto">코인 / USD</option><option value="equity">국내 주식 / KRW</option><option value="cash">현금 / KRW</option><option value="other">기타 자산 / KRW</option></select></label>
     <label>{form.kind === "equity" ? "종목명 검색" : "이름"}<input value={form.name} onChange={(event) => updateName(event.target.value)} placeholder={form.kind === "equity" ? "예: 삼성전자" : "예: 비트코인 또는 예금"} /></label>
@@ -100,6 +113,7 @@ export function PortfolioAssetForm({ onAdd }: PortfolioAssetFormProps) {
     {showManualQuote ? <label>현재 단가 (KRW)<input inputMode="decimal" value={form.manualQuote} onChange={(event) => setForm((current) => ({ ...current, manualQuote: event.target.value }))} /></label> : null}
     {showAverageCost ? <label>평균 매입가 ({form.kind === "crypto" ? "USD" : "KRW"})<input inputMode="decimal" value={form.averageCost} onChange={(event) => setForm((current) => ({ ...current, averageCost: event.target.value }))} /></label> : null}
     <label>섹터<input value={form.sector} onChange={(event) => setForm((current) => ({ ...current, sector: event.target.value }))} placeholder="예: 가상자산, 국내 주식" /></label>
-    <button type="submit">포지션 추가</button>
+    <button type="submit">{editingAsset === null ? "포지션 추가" : "수정 저장"}</button>
+    {editingAsset === null ? null : <button className="cancelEdit" type="button" onClick={cancelEdit}>수정 취소</button>}
   </form>;
 }

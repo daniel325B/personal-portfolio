@@ -138,6 +138,18 @@ button, input, select { font: inherit; }
   font-weight: 800;
 }
 .delete:hover { background: var(--negative); border-color: var(--negative); color: var(--surface); }
+.rowActions { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; }
+.edit, .cancelEdit {
+  min-height: 44px;
+  border: var(--edge);
+  padding: 6px 9px;
+  background: var(--warning);
+  color: var(--ink);
+  cursor: pointer;
+  font-weight: 800;
+}
+.edit:hover, .cancelEdit:hover { background: var(--accent); }
+.cancelEdit { background: var(--surface); }
 
 .raoniHistory { margin-top: 32px; padding: 20px; }
 .snapshotButton { background: var(--accent); box-shadow: 3px 3px 0 var(--ink); color: var(--ink); }
@@ -157,6 +169,7 @@ button, input, select { font: inherit; }
 .allocationRow { display: grid; gap: 7px; }
 .allocationRow > div { display: flex; justify-content: space-between; gap: 10px; font-size: 13px; font-weight: 800; }
 .allocationRow span, .allocationRow small, .allocationEmpty { color: var(--muted); font-size: 12px; font-weight: 600; }
+.allocationBasis { margin: 6px 0 0; color: var(--muted); font-size: 12px; font-weight: 600; }
 .allocationRow i { display: block; height: 10px; overflow: hidden; border: var(--edge); border-radius: 0; background: var(--surface); }
 .allocationRow em { display: block; height: 100%; border-radius: 0; background: var(--accent); }
 
@@ -176,6 +189,7 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 3px s
   .allocationGrid { grid-template-columns: 1fr; }
   .raoniRow { gap: 10px; }
   .raoniRow > div:not(:first-child) { text-align: left; }
+  .rowActions { justify-content: flex-start; }
   .raoniSectionHead { align-items: flex-start; gap: 12px; }
 }
 

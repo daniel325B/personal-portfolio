@@ -17,5 +17,5 @@ function AllocationList({ items, totalValue, formatKrw }: { readonly items: read
 }
 
 export function PortfolioAllocation({ positions, sectors, totalValue, formatKrw }: PortfolioAllocationProps) {
-  return <section className="allocationGrid" aria-label="자산 비중"><article><p className="raoniEyebrow">POSITION WEIGHT</p><h2>포지션 비중</h2><AllocationList items={positions} totalValue={totalValue} formatKrw={formatKrw} /></article><article><p className="raoniEyebrow">SECTOR WEIGHT</p><h2>섹터 비중</h2><AllocationList items={sectors} totalValue={totalValue} formatKrw={formatKrw} /></article></section>;
+  return <section className="allocationGrid" aria-label="자산 비중"><article><p className="raoniEyebrow">POSITION WEIGHT / SPOT BASE</p><h2>포지션 비중</h2><p className="allocationBasis">현물 총액 기준 · 선물 포함</p><AllocationList items={positions} totalValue={totalValue} formatKrw={formatKrw} /></article><article><p className="raoniEyebrow">SECTOR WEIGHT / SPOT BASE</p><h2>섹터 비중</h2><p className="allocationBasis">현물 총액 기준 · 선물 포함</p><AllocationList items={sectors} totalValue={totalValue} formatKrw={formatKrw} /></article></section>;
 }

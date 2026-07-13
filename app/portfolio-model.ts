@@ -57,6 +57,19 @@ export function formForKind(kind: AssetKind): PositionForm {
   return { ...emptyForm, kind, sector: "가상자산" };
 }
 
+export function formForAsset(asset: Asset): PositionForm {
+  return {
+    kind: asset.kind,
+    name: asset.name,
+    symbol: asset.symbol,
+    quantity: String(asset.quantity),
+    averageCost: String(asset.averageCost),
+    manualQuote: asset.kind === "other" ? String(asset.quote) : "",
+    account: asset.account ?? "spot",
+    sector: asset.sector ?? formForKind(asset.kind).sector,
+  };
+}
+
 export function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
 }
