@@ -1,5 +1,7 @@
 export const assetKinds = ["crypto", "equity", "cash", "other"] as const;
 export type AssetKind = (typeof assetKinds)[number];
+export const accountKinds = ["spot", "futures"] as const;
+export type AccountKind = (typeof accountKinds)[number];
 export type QuoteState = "live" | "manual" | "stale" | "pending";
 
 export type Asset = {
@@ -11,6 +13,8 @@ export type Asset = {
   readonly averageCost: number;
   readonly quote: number;
   readonly quoteState: QuoteState;
+  readonly account?: AccountKind;
+  readonly sector?: string;
 };
 
 export type PositionForm = {
@@ -20,6 +24,8 @@ export type PositionForm = {
   readonly quantity: string;
   readonly averageCost: string;
   readonly manualQuote: string;
+  readonly account: AccountKind;
+  readonly sector: string;
 };
 
 export type MarketSnapshot = {
@@ -34,16 +40,21 @@ export type StockCandidate = {
 };
 
 export const emptyMarket: MarketSnapshot = { usdKrw: null, usdtKrw: null, refreshedAt: null };
-export const emptyForm: PositionForm = { kind: "crypto", name: "", symbol: "", quantity: "", averageCost: "", manualQuote: "" };
+export const emptyForm: PositionForm = { kind: "crypto", name: "", symbol: "", quantity: "", averageCost: "", manualQuote: "", account: "spot", sector: "가상자산" };
 
 export function isAssetKind(value: string): value is AssetKind {
   return assetKinds.some((kind) => kind === value);
 }
 
+export function isAccountKind(value: string): value is AccountKind {
+  return accountKinds.some((account) => account === value);
+}
+
 export function formForKind(kind: AssetKind): PositionForm {
-  if (kind === "cash") return { ...emptyForm, kind, name: "KRW 현금", symbol: "KRW", manualQuote: "1" };
-  if (kind === "other") return { ...emptyForm, kind, symbol: "OTHER" };
-  return { ...emptyForm, kind };
+  if (kind === "cash") return { ...emptyForm, kind, name: "KRW 현금", symbol: "KRW", manualQuote: "1", sector: "현금" };
+  if (kind === "equity") return { ...emptyForm, kind, sector: "국내 주식" };
+  if (kind === "other") return { ...emptyForm, kind, symbol: "OTHER", sector: "기타" };
+  return { ...emptyForm, kind, sector: "가상자산" };
 }
 
 export function isRecord(value: unknown): value is Record<string, unknown> {

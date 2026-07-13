@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { captureSnapshot, parsePortfolioHistory, selectTimeline, upsertDailyValue } from "../lib/portfolio-history.mjs";
 import { PortfolioAssetForm } from "./PortfolioAssetForm";
 import { PortfolioHistory } from "./PortfolioHistory";
+import { PortfolioAllocation } from "./PortfolioAllocation";
 import { type Asset, type MarketSnapshot, type PositionForm, type StockCandidate, emptyMarket, isAsset, isRecord, quoteLabel } from "./portfolio-model";
 
 const assetStorageKey = "portfolio-ledger-assets";
@@ -49,11 +50,20 @@ export function PortfolioDashboardV3() {
 
   const positionValue = useCallback((asset: Asset) => asset.quantity * asset.quote * (asset.kind === "crypto" ? (market.usdKrw ?? 0) : 1), [market.usdKrw]);
   const totalValue = useMemo(() => assets.reduce((sum, asset) => sum + positionValue(asset), 0), [assets, positionValue]);
-  const totalUsdValue = market.usdKrw === null ? null : totalValue / market.usdKrw;
-  const totalCost = useMemo(() => assets.reduce((sum, asset) => sum + asset.quantity * asset.averageCost * (asset.kind === "crypto" ? (market.usdKrw ?? 0) : 1), 0), [assets, market.usdKrw]);
+  const spotValue = useMemo(() => assets.filter((asset) => asset.account !== "futures").reduce((sum, asset) => sum + positionValue(asset), 0), [assets, positionValue]);
+  const futuresValue = totalValue - spotValue;
   const marketAssetsKey = useMemo(() => assets.filter((asset) => asset.kind === "crypto" || asset.kind === "equity").map((asset) => `${asset.kind}:${asset.symbol}`).join("|"), [assets]);
   const hasReadyValuation = assets.length > 0 && assets.every((asset) => asset.quote > 0 && (asset.kind !== "crypto" || market.usdKrw !== null));
   const timeline = useMemo(() => selectTimeline(history, range, dayKey()), [history, range]);
+  const positionWeights = useMemo(() => assets.map((asset) => ({ label: `${asset.name} · ${asset.account === "futures" ? "선물" : "현물"}`, value: positionValue(asset) })).sort((left, right) => right.value - left.value), [assets, positionValue]);
+  const sectorWeights = useMemo(() => {
+    const totals = new Map<string, number>();
+    for (const asset of assets) {
+      const sector = asset.sector?.trim() || asset.kind;
+      totals.set(sector, (totals.get(sector) ?? 0) + positionValue(asset));
+    }
+    return [...totals].map(([label, value]) => ({ label, value })).sort((left, right) => right.value - left.value);
+  }, [assets, positionValue]);
 
   const refresh = useCallback(async (assetKey: string) => {
     if (assetKey.length === 0) return;
@@ -107,7 +117,7 @@ export function PortfolioDashboardV3() {
   useEffect(() => { if (hydrated) localStorage.setItem(assetStorageKey, JSON.stringify(assets)); }, [assets, hydrated]);
   useEffect(() => { if (hydrated) localStorage.setItem(historyStorageKey, JSON.stringify(history)); }, [history, hydrated]);
   useEffect(() => { if (hydrated && marketAssetsKey.length > 0) queueMicrotask(() => void refresh(marketAssetsKey)); }, [hydrated, marketAssetsKey, refresh]);
-  useEffect(() => { if (hydrated && hasReadyValuation) queueMicrotask(() => setHistory((current) => upsertDailyValue(current, dayKey(), totalValue))); }, [hasReadyValuation, hydrated, totalValue]);
+  useEffect(() => { if (hydrated && hasReadyValuation) queueMicrotask(() => setHistory((current) => upsertDailyValue(current, dayKey(), spotValue))); }, [hasReadyValuation, hydrated, spotValue]);
 
   function addAsset(form: PositionForm, candidate: StockCandidate | null): boolean {
     const quantity = Number(form.quantity);
@@ -122,23 +132,24 @@ export function PortfolioDashboardV3() {
     }
     const quote = form.kind === "cash" ? 1 : form.kind === "other" ? manualQuote : 0;
     const quoteState = form.kind === "cash" || form.kind === "other" ? "manual" : "pending";
-    setAssets((current) => [...current, { id: crypto.randomUUID(), kind: form.kind, name: form.name.trim(), symbol, quantity, averageCost, quote, quoteState }]);
+    setAssets((current) => [...current, { id: crypto.randomUUID(), kind: form.kind, name: form.name.trim(), symbol, quantity, averageCost, quote, quoteState, account: form.account, sector: form.sector.trim() || form.kind }]);
     setNotice(form.kind === "cash" || form.kind === "other" ? "직접 입력 자산을 추가했습니다." : "포지션을 추가했습니다. 시장가를 자동으로 조회합니다.");
     return true;
   }
 
   function saveSnapshot(): void {
     if (!hasReadyValuation) { setNotice("현재가가 준비된 뒤 스냅샷을 저장할 수 있습니다."); return; }
-    setHistory((current) => captureSnapshot(current, new Date().toISOString(), totalValue, crypto.randomUUID()));
+    setHistory((current) => captureSnapshot(current, new Date().toISOString(), spotValue, crypto.randomUUID()));
     setNotice("현재 포트폴리오 가치를 스냅샷으로 저장했습니다.");
   }
 
   const pending = assets.some((asset) => asset.kind === "crypto") && market.usdKrw === null;
   return <main className="raoniPortfolio">
     <header className="raoniHeader"><div><p className="raoniEyebrow">PORTFOLIO LEDGER / KRW BASE</p><h1>개인 자산</h1><p>코인은 Hyperliquid USD, 국내 주식은 KRW로 조회하고 현금·기타 자산은 직접 추가할 수 있습니다.</p></div><button type="button" onClick={() => void refresh(marketAssetsKey)} disabled={refreshing || marketAssetsKey.length === 0}>{refreshing ? "시장가 갱신 중" : "시장가 갱신"}</button></header>
-    <section className="marketStrip" aria-label="시장 요약"><article><span>PORTFOLIO VALUE / KRW</span><strong>{pending ? "USD/KRW 대기" : formatKrw(totalValue)}</strong><small>평가 손익 {pending ? "—" : formatKrw(totalValue - totalCost)}</small></article><article><span>PORTFOLIO VALUE / USD</span><b>{totalUsdValue === null ? "USD/KRW 대기" : formatUsd(totalUsdValue)}</b><small>현재 USD/KRW 환율 기준 환산값</small></article><article><span>USD / KRW</span><b>{market.usdKrw === null ? "—" : formatKrw(market.usdKrw)}</b><small>ExchangeRate API 일일 기준</small></article><article><span>USDT / KRW</span><b>{market.usdtKrw === null ? "—" : formatKrw(market.usdtKrw)}</b><small>Upbit KRW-USDT</small></article></section>
+    <section className="marketStrip" aria-label="시장 요약"><article><span>SPOT VALUE / KRW</span><strong>{pending ? "USD/KRW 대기" : formatKrw(spotValue)}</strong><small>기존 포트폴리오 가치 · 현물 기준</small></article><article><span>SPOT VALUE / USD</span><b>{market.usdKrw === null ? "USD/KRW 대기" : formatUsd(spotValue / market.usdKrw)}</b><small>현재 USD/KRW 환율 기준 환산값</small></article><article><span>FUTURES VALUE / KRW</span><b>{formatKrw(futuresValue)}</b><small>선물 포지션 평가액</small></article><article><span>USD / KRW</span><b>{market.usdKrw === null ? "—" : formatKrw(market.usdKrw)}</b><small>ExchangeRate API 일일 기준</small></article><article><span>USDT / KRW</span><b>{market.usdtKrw === null ? "—" : formatKrw(market.usdtKrw)}</b><small>Upbit KRW-USDT</small></article></section>
     <p className="raoniNotice" role="status">{notice}{market.refreshedAt === null ? "" : ` · 마지막 갱신 ${market.refreshedAt}`}</p>
-    <section className="raoniGrid"><PortfolioAssetForm onAdd={addAsset} /><section className="raoniPositions" aria-label="보유 포지션"><div className="raoniSectionHead"><div><p className="raoniEyebrow">HOLDINGS</p><h2>보유 포지션</h2></div><span>{assets.length} assets</span></div>{assets.length === 0 ? <div className="raoniEmpty">자산을 추가하면 가격과 KRW 환산 가치를 확인할 수 있습니다.</div> : assets.map((asset) => <article className="raoniRow" key={asset.id}>{asset.kind === "cash" ? <><div><b>{asset.name}</b><small>직접 입력 · {quoteLabel(asset)}</small></div><div><b>{formatKrw(positionValue(asset))}</b><small>보유 현금</small></div></> : <><div><b>{asset.name}</b><small>{asset.symbol} · {sourceText(asset)} · {quoteLabel(asset)}</small></div><div><span>{quoteText(asset)}</span><small>현재 단가</small></div><div><b>{asset.kind === "crypto" && market.usdKrw === null ? "USD/KRW 대기" : formatKrw(positionValue(asset))}</b><small>{formatNumber(asset.quantity)} 보유</small></div></>}<button className="delete" type="button" onClick={() => setAssets((current) => current.filter((item) => item.id !== asset.id))}>삭제</button></article>)}</section></section>
+    <section className="raoniGrid"><PortfolioAssetForm onAdd={addAsset} /><section className="raoniPositions" aria-label="보유 포지션"><div className="raoniSectionHead"><div><p className="raoniEyebrow">HOLDINGS</p><h2>보유 포지션</h2></div><span>{assets.length} assets</span></div>{assets.length === 0 ? <div className="raoniEmpty">자산을 추가하면 가격과 KRW 환산 가치를 확인할 수 있습니다.</div> : assets.map((asset) => <article className="raoniRow" key={asset.id}>{asset.kind === "cash" ? <><div><b>{asset.name}</b><small>{asset.account === "futures" ? "선물" : "현물"} · 직접 입력 · {quoteLabel(asset)}</small></div><div><b>{formatKrw(positionValue(asset))}</b><small>보유 현금</small></div></> : <><div><b>{asset.name}</b><small>{asset.account === "futures" ? "선물" : "현물"} · {asset.sector ?? asset.kind} · {asset.symbol} · {sourceText(asset)} · {quoteLabel(asset)}</small></div><div><span>{quoteText(asset)}</span><small>현재 단가</small></div><div><b>{asset.kind === "crypto" && market.usdKrw === null ? "USD/KRW 대기" : formatKrw(positionValue(asset))}</b><small>{formatNumber(asset.quantity)} 보유</small></div></>}<button className="delete" type="button" onClick={() => setAssets((current) => current.filter((item) => item.id !== asset.id))}>삭제</button></article>)}</section></section>
+    <PortfolioAllocation positions={positionWeights} sectors={sectorWeights} totalValue={totalValue} formatKrw={formatKrw} />
     <PortfolioHistory points={timeline} range={range} onRangeChange={setRange} onSnapshot={saveSnapshot} formatKrw={formatKrw} />
     <footer>Hyperliquid mid는 USD 기준입니다. 국내 주식은 네이버 금융 공개 페이지의 KRW 시세를 서버에서 조회하며, 실패 시 마지막 확인 값을 유지합니다.</footer>
   </main>;
